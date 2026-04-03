@@ -524,6 +524,7 @@ body {
   color: white;
   border-color: #3B82F6;
   font-size: var(--text-sm);
+  font-weight: 500;
 }
 
 .btn-import:hover {
