@@ -44,7 +44,7 @@ export function normalizeExcelDate(value) {
   if (!s) return '';
 
   // Already ISO-ish
-  const iso = /^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/.exec(s);
+  const iso = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(s);
   if (iso) {
     const y = Number(iso[1]);
     const m = Number(iso[2]);
@@ -54,7 +54,7 @@ export function normalizeExcelDate(value) {
   }
 
   // dd/mm/yyyy or mm/dd/yyyy (also supports -, .)
-  const dmy = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(s);
+  const dmy = /^(\d{1,2})[/. -](\d{1,2})[/. -](\d{4})$/.exec(s);
   if (dmy) {
     const a = Number(dmy[1]);
     const b = Number(dmy[2]);
