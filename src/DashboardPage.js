@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import './Dashboard.css';
 import SummaryCards from './components/SummaryCards';
@@ -21,12 +21,18 @@ const trendData = [
   { month: 'Aug', value: 450 },
 ];
 
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'admin', label: 'Admin' },
+  { id: 'viewer', label: 'Viewer' },
+];
+
 export default function DashboardPage() {
   const dispatch = useDispatch();
   const { transactions, role } = useSelector((state) => state);
+  const [activeNav, setActiveNav] = useState('dashboard');
 
   useEffect(() => {
-    // Initialize theme on app load
     const savedTheme = loadThemePreference();
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
@@ -67,7 +73,7 @@ export default function DashboardPage() {
     const currentNet = currentSummary.income - currentSummary.expenses;
 
     const isComparisonAvailable = !!lastMonth;
-    const diffPercent = isComparisonAvailable ? ((currentNet - lastNet) / (Math.abs(lastNet) || 1) * 100) : 0;
+    const diffPercent = isComparisonAvailable ? ((currentNet - lastNet) / (Math.abs(lastNet) || 1)) * 100 : 0;
     const monthComparison = isComparisonAvailable
       ? currentNet >= lastNet
         ? `Net up ${diffPercent.toFixed(1)}% vs ${lastMonth}`
@@ -82,14 +88,11 @@ export default function DashboardPage() {
       .reduce((sum, tx) => sum + tx.amount, 0);
     const totalBalance = totalIncome - totalExpenses;
 
-    // Recent spending breakdown (last 30 days relative to most recent tx date)
     const expenseWithDate = expenses
       .map((tx) => ({ tx, ms: dateToTimestampMs(tx.date) }))
       .filter((item) => !Number.isNaN(item.ms));
 
-    const anchorMs = expenseWithDate.length
-      ? Math.max(...expenseWithDate.map((x) => x.ms))
-      : Number.NaN;
+    const anchorMs = expenseWithDate.length ? Math.max(...expenseWithDate.map((x) => x.ms)) : Number.NaN;
     const startMs = Number.isNaN(anchorMs) ? Number.NaN : anchorMs - 30 * 24 * 60 * 60 * 1000;
 
     const recentExpenses = Number.isNaN(startMs)
@@ -112,7 +115,6 @@ export default function DashboardPage() {
       }))
       .sort((a, b) => b.value - a.value);
 
-    // Keep chart readable: top 6 + "Other"
     if (spendingCategories.length > 7) {
       const top = spendingCategories.slice(0, 6);
       const otherValue = spendingCategories.slice(6).reduce((sum, x) => sum + x.value, 0);
@@ -123,29 +125,39 @@ export default function DashboardPage() {
       {
         label: 'Total Balance',
         value: totalBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        change: currentNet >= 0 ? `+${((currentNet / (lastNet || 1)) * 100).toFixed(1)}%` : `${((currentNet / (lastNet || 1)) * 100).toFixed(1)}%`,
+        change:
+          currentNet >= 0
+            ? `+${((currentNet / (lastNet || 1)) * 100).toFixed(1)}%`
+            : `${((currentNet / (lastNet || 1)) * 100).toFixed(1)}%`,
         type: 'balance',
         data: months.map((m) => monthTotals[m].income - monthTotals[m].expenses),
       },
       {
         label: 'Total Income',
         value: totalIncome.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        change: currentSummary.income >= lastSummary.income ? `+${((Math.abs(currentSummary.income - lastSummary.income) / (lastSummary.income || 1)) * 100).toFixed(1)}%` : `-${((Math.abs(currentSummary.income - lastSummary.income) / (lastSummary.income || 1)) * 100).toFixed(1)}%`,
+        change:
+          currentSummary.income >= lastSummary.income
+            ? `+${((Math.abs(currentSummary.income - lastSummary.income) / (lastSummary.income || 1)) * 100).toFixed(1)}%`
+            : `-${((Math.abs(currentSummary.income - lastSummary.income) / (lastSummary.income || 1)) * 100).toFixed(1)}%`,
         type: 'income',
         data: months.map((m) => monthTotals[m].income),
       },
       {
         label: 'Total Expenses',
         value: totalExpenses.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        change: currentSummary.expenses <= lastSummary.expenses ? `-${((Math.abs(currentSummary.expenses - lastSummary.expenses) / (lastSummary.expenses || 1)) * 100).toFixed(1)}%` : `+${((Math.abs(currentSummary.expenses - lastSummary.expenses) / (lastSummary.expenses || 1)) * 100).toFixed(1)}%`,
+        change:
+          currentSummary.expenses <= lastSummary.expenses
+            ? `-${((Math.abs(currentSummary.expenses - lastSummary.expenses) / (lastSummary.expenses || 1)) * 100).toFixed(1)}%`
+            : `+${((Math.abs(currentSummary.expenses - lastSummary.expenses) / (lastSummary.expenses || 1)) * 100).toFixed(1)}%`,
         type: 'expense',
         data: months.map((m) => monthTotals[m].expenses),
       },
     ];
 
-    const observation = expenses.length === 0
-      ? 'No expense data yet'
-      : `Focus on ${highestSpendingCategory ? highestSpendingCategory[0] : 'N/A'} spending to reduce costs`;
+    const observation =
+      expenses.length === 0
+        ? 'No expense data yet'
+        : `Focus on ${highestSpendingCategory ? highestSpendingCategory[0] : 'N/A'} spending to reduce costs`;
 
     return {
       totalIncome,
@@ -166,62 +178,139 @@ export default function DashboardPage() {
     };
   }, [transactions]);
 
+  const mainTitle =
+    activeNav === 'dashboard'
+      ? 'Dashboard overview'
+      : activeNav === 'admin'
+        ? 'Admin workspace'
+        : 'Viewer workspace';
+
+  const mainSubtitle =
+    activeNav === 'dashboard'
+      ? 'Summary cards, trends, and financial insights.'
+      : activeNav === 'admin'
+        ? 'Manage transactions when your role is Admin.'
+        : 'Read-only access to transaction data.';
+
   return (
-    <div className="dashboard-app">
-      <ThemeToggle />
+    <div className="dashboard-shell">
+      <aside className="dashboard-sidebar" aria-label="Main navigation">
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-name">Finanace Panel</span>
+        </div>
+        <div className="sidebar-divider" />
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`sidebar-nav-item${activeNav === item.id ? ' is-active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <label className="sidebar-role-label" htmlFor="sidebar-role-select">
+            Role
+          </label>
+          <select
+            id="sidebar-role-select"
+            className="sidebar-role-select"
+            value={role}
+            onChange={(e) => dispatch(setRole(e.target.value))}
+          >
+            <option value="viewer">Viewer</option>
+            <option value="admin">Admin</option>
+          </select>
+          <p className="sidebar-role-hint">
+            {role === 'admin' ? 'Full transaction management in Admin.' : 'Read-only in Viewer; Admin tab stays safe.'}
+          </p>
+        </div>
+      </aside>
 
-      <header className="dashboard-header">
-        <h1>Finance Dashboard</h1>
-        <p>Insightful summary + trends to help users manage finances.</p>
-      </header>
+      <div className="dashboard-main">
+        <header className="dashboard-main-header">
+          <div className="dashboard-main-header-inner">
+            <div className="dashboard-main-titles">
+              <h1 className="dashboard-main-title">{mainTitle}</h1>
+              <p className="dashboard-main-subtitle">{mainSubtitle}</p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </header>
 
-      <div className="role-selector">
-        <label htmlFor="role-select">Role:</label>
-        <select id="role-select" value={role} onChange={(e) => dispatch(setRole(e.target.value))}>
-          <option value="viewer">Viewer</option>
-          <option value="admin">Admin</option>
-        </select>
-        <span>{role === 'admin' ? 'Admin can add/edit transactions' : 'Viewer has read-only access'}</span>
+        {activeNav === 'dashboard' && (
+          <div className="dashboard-main-body animate-fade-in">
+            <SummaryCards cards={insights.summaryCards} />
+            <section className="chart-grid">
+              <BalanceTrend trend={trendData} />
+              <SpendingBreakdown categories={insights.spendingCategories} />
+            </section>
+
+            <section className="insights-section">
+              <div className="card">
+                <h4>Highest spending category</h4>
+                <p>
+                  {insights.highestSpendingCategory === 'N/A'
+                    ? 'No data available'
+                    : `${insights.highestSpendingCategory} (${insights.highestSpendingAmount.toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })})`}
+                </p>
+              </div>
+              <div className="card">
+                <h4>Monthly comparison</h4>
+                {insights.currentMonth ? (
+                  <>
+                    <p>{`${insights.currentMonth}: Expense ${insights.currentSummary.expenses.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })}, Net ${insights.currentNet.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`}</p>
+                    <p>{`${insights.lastMonth}: Expense ${insights.lastSummary.expenses.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    })}, Net ${insights.lastNet.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`}</p>
+                  </>
+                ) : (
+                  <p>No data available</p>
+                )}
+                <p>{insights.monthComparison}</p>
+              </div>
+              <div className="card">
+                <h4>Observation</h4>
+                <p>{insights.observation}</p>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeNav === 'admin' && (
+          <div className="dashboard-main-body animate-fade-in">
+            <TransactionsTable
+              transactions={transactions}
+              role={role}
+              viewMode="admin"
+              onAddTransaction={(tx) => dispatch(addTransaction(tx))}
+              onUpdateTransaction={(updatedTx) => dispatch(updateTransaction(updatedTx))}
+            />
+          </div>
+        )}
+
+        {activeNav === 'viewer' && (
+          <div className="dashboard-main-body animate-fade-in">
+            <TransactionsTable
+              transactions={transactions}
+              role={role}
+              viewMode="viewer"
+              onAddTransaction={(tx) => dispatch(addTransaction(tx))}
+              onUpdateTransaction={(updatedTx) => dispatch(updateTransaction(updatedTx))}
+            />
+          </div>
+        )}
       </div>
-
-      <SummaryCards cards={insights.summaryCards} />
-      <section className="chart-grid">
-        <BalanceTrend trend={trendData} />
-        <SpendingBreakdown categories={insights.spendingCategories} />
-      </section>
-
-      <section className="insights-section">
-        <div className="card">
-          <h4>Highest spending category</h4>
-          <p>{insights.highestSpendingCategory === 'N/A' ? 'No data available' : `${insights.highestSpendingCategory} (${insights.highestSpendingAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })})`}</p>
-        </div>
-        <div className="card">
-          <h4>Monthly comparison</h4>
-          {insights.currentMonth ? (
-            <>
-              <p>{`${insights.currentMonth}: Expense ${insights.currentSummary.expenses.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}, Net ${insights.currentNet.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`}</p>
-              <p>{`${insights.lastMonth}: Expense ${insights.lastSummary.expenses.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}, Net ${insights.lastNet.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`}</p>
-            </>
-          ) : (
-            <p>No data available</p>
-          )}
-          <p>{insights.monthComparison}</p>
-        </div>
-        <div className="card">
-          <h4>Observation</h4>
-          <p>{insights.observation}</p>
-        </div>
-      </section>
-
-      <TransactionsTable
-        transactions={transactions}
-        role={role}
-        onAddTransaction={(tx) => dispatch(addTransaction(tx))}
-        onUpdateTransaction={(updatedTx) => dispatch(updateTransaction(updatedTx))}
-      />
     </div>
   );
 }
-
-//Income ${insights.currentSummary.income.toLocaleString('en-US', { style: 'currency', currency: 'USD' })},
-// Income ${insights.lastSummary.income.toLocaleString('en-US', { style: 'currency', currency: 'USD' })},
