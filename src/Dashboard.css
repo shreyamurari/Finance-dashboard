@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --bg: #f7f2ff;
   --card: #fff;
   --text: #212121;
@@ -11,6 +12,11 @@
   --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.08);
   --radius: 12px;
   --radius-sm: 8px;
+  /* Surfaces (forms, secondary buttons) */
+  --input-bg: #ffffff;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-hover: #f9fafb;
+  --category-bar-bg: #f3f4f6;
 
   /* Responsive spacing system */
   --spacing-xs: clamp(4px, 2vw, 8px);
@@ -32,13 +38,18 @@
 
 /* Dark mode variables */
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0f0f0f;
   --card: #1a1a1a;
   --text: #f5f5f5;
-  --muted: #a3a3a3;
-  --border: #2a2a2a;
+  --muted: #b0b0b0;
+  --border: #3a3a3a;
   --shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   --shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.4);
+  --input-bg: #252525;
+  --btn-secondary-bg: #2e2e2e;
+  --btn-secondary-hover: #3d3d3d;
+  --category-bar-bg: #333333;
 }
 
 * {
@@ -59,6 +70,32 @@ body {
   font-size: var(--text-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Explicit text/background on fields so dark mode never uses browser default (black) text */
+.search-input,
+.form-grid input,
+.form-grid select,
+.sidebar-role-select,
+.page-size-select,
+.filter-group input,
+.filter-group select,
+.role-selector select {
+  color: var(--text);
+  background-color: var(--input-bg);
+  font-family: inherit;
+}
+
+.search-input::placeholder,
+.form-grid input::placeholder,
+.filter-group input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+select option {
+  background-color: var(--card);
+  color: var(--text);
 }
 
 .dashboard-shell {
@@ -533,6 +570,18 @@ body {
   background: linear-gradient(180deg, #fee2e2 0%, #fff 100%);
 }
 
+[data-theme="dark"] .card-balance {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.22) 0%, var(--card) 100%);
+}
+
+[data-theme="dark"] .card-income {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.18) 0%, var(--card) 100%);
+}
+
+[data-theme="dark"] .card-expense {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.18) 0%, var(--card) 100%);
+}
+
 .chart-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -583,6 +632,10 @@ body {
   opacity: 0.8;
 }
 
+[data-theme="dark"] .line-chart-bar {
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.55) 0%, rgba(124, 58, 237, 0.25) 100%);
+}
+
 .line-chart-bar span {
   position: absolute;
   bottom: -24px;
@@ -599,8 +652,13 @@ body {
   margin-bottom: var(--spacing-sm);
 }
 
+.category-chart .category-row span {
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
 .category-bar-wrap {
-  background: #f3f4f6;
+  background: var(--category-bar-bg);
   border-radius: 999px;
   overflow: hidden;
   height: 12px;
@@ -648,6 +706,10 @@ body {
   text-align: left;
   padding: var(--spacing-sm) var(--spacing-xs);
   border-bottom: 1px solid var(--border);
+}
+
+.transaction-table td {
+  color: var(--text);
 }
 
 .transaction-table th {
@@ -1168,14 +1230,18 @@ body {
 }
 
 .btn-secondary {
-  background: white;
+  background: var(--btn-secondary-bg);
   color: var(--text);
   border-color: var(--border);
 }
 
 .btn-secondary:hover {
-  background: #f9fafb;
+  background: var(--btn-secondary-hover);
   border-color: #d1d5db;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  border-color: #4a4a4a;
 }
 
 .btn-danger {
@@ -1275,6 +1341,12 @@ body {
   font-size: var(--text-lg);
   min-width: 0;
   word-break: break-word;
+  color: var(--text);
+}
+
+.modal-body p,
+.modal-body label {
+  color: inherit;
 }
 
 .close-btn {
@@ -1296,6 +1368,7 @@ body {
 
 .modal-body {
   padding: clamp(var(--spacing-md), 4vw, var(--spacing-lg));
+  color: var(--text);
 }
 
 .filter-group {
