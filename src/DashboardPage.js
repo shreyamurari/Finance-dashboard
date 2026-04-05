@@ -32,10 +32,25 @@ export default function DashboardPage() {
   const { transactions, role } = useSelector((state) => state);
   const [activeNav, setActiveNav] = useState('dashboard');
 
+  const visibleNavItems = useMemo(() => {
+    if (role === 'admin') {
+      return NAV_ITEMS.filter((item) => item.id !== 'viewer');
+    }
+    return NAV_ITEMS.filter((item) => item.id !== 'admin');
+  }, [role]);
+
   useEffect(() => {
     const savedTheme = loadThemePreference();
     document.documentElement.setAttribute('data-theme', savedTheme);
   }, []);
+
+  useEffect(() => {
+    setActiveNav((current) => {
+      if (role === 'admin' && current === 'viewer') return 'dashboard';
+      if (role === 'viewer' && current === 'admin') return 'dashboard';
+      return current;
+    });
+  }, [role]);
 
   const insights = useMemo(() => {
     const expenses = transactions.filter((tx) => String(tx.type || '').toLowerCase() === 'expense');
@@ -200,7 +215,7 @@ export default function DashboardPage() {
         </div>
         <div className="sidebar-divider" />
         <nav className="sidebar-nav">
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -225,7 +240,9 @@ export default function DashboardPage() {
             <option value="admin">Admin</option>
           </select>
           <p className="sidebar-role-hint">
-            {role === 'admin' ? 'Full transaction management in Admin.' : 'Read-only in Viewer; Admin tab stays safe.'}
+            {role === 'admin'
+              ? 'Use the Admin tab for full transaction management.'
+              : 'Use the Viewer tab for read-only transactions.'}
           </p>
         </div>
       </aside>

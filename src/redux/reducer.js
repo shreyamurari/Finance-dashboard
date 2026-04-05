@@ -12,7 +12,8 @@ import {
   SET_ERROR
 } from './actions';
 
-const initialTransactions = [
+/** Shown on first visit per browser profile; after that, list comes from localStorage */
+export const DEFAULT_TRANSACTIONS = [
   { id: 1, name: 'Starbucks', date: '2026-03-20', amount: 10.45, category: 'Food', type: 'expense', status: 'Completed' },
   { id: 2, name: 'Amazon', date: '2026-03-19', amount: 98.22, category: 'Shopping', type: 'expense', status: 'Completed' },
   { id: 3, name: 'Rent', date: '2026-03-01', amount: 1200.0, category: 'Housing', type: 'expense', status: 'Completed' },
@@ -20,7 +21,7 @@ const initialTransactions = [
 ];
 
 const initialState = {
-  transactions: initialTransactions,
+  transactions: DEFAULT_TRANSACTIONS,
   role: 'viewer',
   theme: 'light',
   loading: false,
