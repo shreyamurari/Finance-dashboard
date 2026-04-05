@@ -1146,6 +1146,11 @@ select option {
   background: rgba(124, 58, 237, 0.02);
 }
 
+[data-theme="dark"] .transaction-form {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: rgba(124, 58, 237, 0.08);
+}
+
 .transaction-form h4 {
   margin: 0 0 var(--spacing-md);
   color: var(--text);
