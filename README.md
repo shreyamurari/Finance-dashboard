@@ -1,274 +1,231 @@
-# Finance Dashboard
+# Finance Panel — Personal Finance Dashboard
 
-A comprehensive, industrial-grade React finance dashboard with advanced features including dark mode, data persistence, export functionality, and role-based access control.
+A single-page **React** web application for exploring income and expenses: summary metrics, charts, and a sortable **transactions** table with **Admin** (full edit) and **Viewer** (read-only) workspaces. Data is stored in the **browser** (no backend server).
 
-## 🚀 Features
+This document is written for **reviewers, new developers, and end users** who open the project for the first time.
 
-### Core Functionality
-- **Transaction Management**: Full CRUD operations for financial transactions
-- **Role-Based Access Control**: Admin and Viewer roles with different permissions
-- **Real-time Insights**: Dynamic financial summaries and trend analysis
-- **Interactive Charts**: Balance trends and spending breakdown visualizations
+---
 
-### Advanced Features
-- **🌙 Dark Mode**: Complete theme switching with persistence
-- **💾 Data Persistence**: localStorage integration for data and preferences
-- **📊 Export Functionality**: CSV and JSON export capabilities
-- **🔍 Advanced Filtering**: Multi-criteria filtering with date and amount ranges
-- **🔄 Mock API Integration**: Simulated network operations with error handling
-- **✨ Animations**: Smooth transitions and micro-interactions
-- **📱 Responsive Design**: Mobile-first approach across all devices
+## Table of contents
 
-## 🛠️ Tech Stack
+1. [Overview](#overview)
+2. [Tech stack](#tech-stack)
+3. [Getting started (developers)](#getting-started-developers)
+4. [How to use the panel (end users)](#how-to-use-the-panel-end-users)
+5. [Roles: Admin vs Viewer](#roles-admin-vs-viewer)
+6. [Data: seed transactions & persistence](#data-seed-transactions--persistence)
+7. [Excel import format](#excel-import-format)
+8. [Project structure](#project-structure)
+9. [Testing & build](#testing--build)
+10. [Limitations & notes](#limitations--notes)
 
-- **Frontend**: React 19.2.4 with Hooks
-- **State Management**: Redux 5.0.1
-- **Styling**: CSS with CSS Custom Properties
-- **Build Tool**: Create React App
-- **Testing**: Jest + React Testing Library
+---
 
-## 📦 Installation
+## Overview
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd project
-   ```
+**Finance Panel** (branded in the UI as “Finanace Panel”) provides:
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+- **Dashboard** — balance, income, and expense cards; a balance trend visualization; spending breakdown; and short insight cards.
+- **Admin** — transaction management: add, edit, delete, search, advanced filters, export **CSV** / **JSON**, import **Excel**, and paginated table navigation.
+- **Viewer** — the same table in **read-only** mode (no add/edit/delete/import).
 
-3. **Start development server**
-   ```bash
-   npm start
-   ```
+The **sidebar** lets you switch sections and choose a **Role** (Admin or Viewer). Which tabs appear depends on the role (see [Roles](#roles-admin-vs-viewer)).
 
-4. **Open in browser**
-   ```
-   http://localhost:3000
-   ```
+**Light / dark** theme is available from the header toggle; the choice is remembered in the browser.
 
-## 🏗️ Project Structure
+---
 
-```
-src/
-├── components/           # Reusable UI components
-│   ├── AdvancedFilters.js    # Advanced filtering modal
-│   ├── BalanceTrend.js       # Balance trend chart
-│   ├── SpendingBreakdown.js  # Spending breakdown chart
-│   ├── SummaryCards.js       # Financial summary cards
-│   ├── ThemeToggle.js        # Dark/light theme toggle
-│   └── TransactionsTable.js  # Transaction management table
-├── redux/               # State management
-│   ├── actions.js           # Redux actions
-│   ├── reducer.js           # Redux reducer
-│   └── store.js             # Redux store configuration
-├── utils/               # Utility functions
-│   └── dataUtils.js         # Data persistence and export utilities
-├── App.js               # Main app component
-├── DashboardPage.js     # Main dashboard page
-└── Dashboard.css        # Global styles and responsive design
+## Tech stack
+
+| Layer | Technology | Purpose |
+|--------|------------|---------|
+| **UI library** | [React](https://react.dev/) 19 | Component-based interface |
+| **State** | [Redux](https://redux.js.org/) 5 + [React-Redux](https://react-redux.js.org/) 9 | Global app state (transactions, role, theme, filters, loading/errors) |
+| **Tables** | [TanStack Table](https://tanstack.com/table) v8 (`@tanstack/react-table`) | Sortable, paginated transaction grid |
+| **Spreadsheets** | [SheetJS (`xlsx`)](https://sheetjs.com/) | Read `.xlsx` / `.xls` for import |
+| **Icons** | [Lucide React](https://lucide.dev/) | Toolbar and UI icons |
+| **Tooling** | [Create React App](https://create-react-app.dev/) (`react-scripts` 5) | Dev server, build, Jest test runner |
+| **Language** | JavaScript (ES modules) | Application source |
+| **Styling** | CSS (single large `Dashboard.css` + `index.css`) | Layout, responsive breakpoints, theme variables |
+| **Fonts** | IBM Plex Sans (Google Fonts) | Typography |
+| **Persistence** | Browser `localStorage` | Transactions, theme, role |
+
+There is **no** Node/Express API, database, or authentication service in this repo. “API” delays in the app are **simulated** in `src/utils/dataUtils.js` (`mockApiCall`) for demonstration.
+
+---
+
+## Getting started (developers)
+
+### Prerequisites
+
+- **Node.js** (LTS recommended, e.g. 18.x or 20.x)
+- **npm** (bundled with Node)
+
+### Install
+
+```bash
+npm install
 ```
 
-## 🎯 Key Features Explained
+### Run locally
 
-### Role-Based Access Control (RBAC)
-- **Admin Role**: Full CRUD operations, add/edit/delete transactions
-- **Viewer Role**: Read-only access, view-only permissions
-- Role persistence across sessions
+```bash
+npm start
+```
 
-### Advanced Filtering System
-- **Basic Search**: Text search across all transaction fields
-- **Advanced Filters**: Category, type, status, date range, amount range
-- **Real-time Filtering**: Instant results as you type/select
-- **Filter Persistence**: Maintains filter state across interactions
+Opens the app at [http://localhost:3000](http://localhost:3000) with hot reload.
 
-### Data Persistence & Export
-- **localStorage Integration**: Automatic data saving and loading
-- **Theme Persistence**: Remembers user's theme preference
-- **Export Options**: CSV and JSON formats with date-stamped filenames
-- **Mock API**: Simulated network calls with error handling
+### Production build
 
-### Responsive Design
-- **Mobile-First**: Optimized for mobile devices
-- **Tablet Support**: Adaptive layouts for tablets
-- **Desktop Enhancement**: Full feature set on larger screens
-- **Touch-Friendly**: Optimized for touch interactions
-
-## 🎨 Design System
-
-### Color Palette
-- **Primary**: Purple (#7c3aed) for interactive elements
-- **Success**: Green (#22c55e) for positive actions
-- **Danger**: Red (#ef4444) for destructive actions
-- **Neutral**: Adaptive based on theme
-
-### Typography
-- **Font Family**: Inter, Segoe UI, Roboto (system fonts)
-- **Responsive Sizing**: Clamp-based fluid typography
-- **Hierarchy**: Clear heading and body text scales
-
-### Animations
-- **Fade-in**: Component entrance animations
-- **Scale**: Button hover effects
-- **Slide**: Modal transitions
-- **Pulse**: Loading and interactive states
-
-## 🔧 Development Approach
-
-### State Management Strategy
-- **Redux Store**: Centralized state for transactions, filters, theme, and UI state
-- **Actions**: Well-defined action types for all state changes
-- **Reducers**: Pure functions handling state updates
-- **Selectors**: Efficient state access patterns
-
-### Component Architecture
-- **Functional Components**: Modern React with hooks
-- **Separation of Concerns**: UI logic separated from business logic
-- **Reusable Components**: Modular, composable component design
-- **Prop Validation**: Type checking and default props
-
-### CSS Architecture
-- **CSS Custom Properties**: Theme-able design system
-- **Responsive Units**: Fluid spacing and typography
-- **Component-Scoped Styles**: Organized, maintainable CSS
-- **Dark Mode Support**: Complete theme system
-
-## 🚀 Performance Optimizations
-
-- **Memoization**: React.memo and useMemo for expensive calculations
-- **Efficient Re-renders**: Optimized component update cycles
-- **Lazy Loading**: On-demand component loading
-- **Bundle Optimization**: Production-ready build configuration
-
-## 🧪 Testing Strategy
-
-- **Unit Tests**: Component and utility function testing
-- **Integration Tests**: Redux state management testing
-- **E2E Tests**: User flow testing (planned)
-- **Accessibility Testing**: WCAG compliance verification
-
-## 📱 Browser Support
-
-- **Modern Browsers**: Chrome, Firefox, Safari, Edge
-- **Mobile Browsers**: iOS Safari, Chrome Mobile
-- **Progressive Enhancement**: Graceful degradation for older browsers
-
-## 🔒 Security Considerations
-
-- **Input Validation**: Client-side validation for all forms
-- **XSS Prevention**: Proper data sanitization
-- **CSRF Protection**: Secure API integration patterns
-- **Data Privacy**: localStorage usage with user consent
-
-## 🚀 Deployment
-
-### Build for Production
 ```bash
 npm run build
 ```
 
-### Serve Static Files
-```bash
-npm install -g serve
-serve -s build
-```
-
-### Environment Variables
-Create `.env` file for environment-specific configurations:
-```
-REACT_APP_API_URL=https://api.example.com
-REACT_APP_ENVIRONMENT=production
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- React team for the amazing framework
-- Redux maintainers for state management
-- Create React App for the excellent tooling
-- Open source community for inspiration and tools
+Outputs an optimized bundle under `build/`, suitable for static hosting.
 
 ---
 
-**Built with ❤️ using React & Redux**
+## How to use the panel (end users)
 
-## Available Scripts
+### First visit
 
-In the project directory, you can run:
+1. Open the app in the browser (after `npm start` or your deployed URL).
+2. Use the **sidebar** on the left:
+   - **Dashboard** — overview and charts.
+   - **Admin** or **Viewer** — transactions (see [Roles](#roles-admin-vs-viewer)).
+3. At the bottom of the sidebar, choose **Role**: **Viewer** or **Admin**.  
+   - The visible tabs update automatically (Admin users do not see the Viewer tab; Viewer users do not see the Admin tab).
+4. Use the **theme** control in the top header to switch light/dark mode.
 
-### `npm start`
+### Dashboard tab
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Review **summary cards** (balance, income, expenses).
+- Scroll through **charts** (sample trend data is partly static for the line trend; spending breakdown uses your transaction data).
+- Read **insight** cards (highest category, month comparison, observation).
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Transactions (Admin or Viewer)
 
-### `npm test`
+- **Search** — filter by text across name, date, category, type, and status.
+- **Filters** — open advanced filters (category, type, status, date range, amount range).
+- **Sort** — click column headers where sorting is enabled.
+- **Pagination** — change **rows per page** and use the icon controls (first / previous / next / last). The bar shows how many entries you are viewing and total records.
+- **Admin only**
+  - **Add Transaction** — opens a form; fill all fields and save.
+  - **Edit / Delete** — per row; delete asks for confirmation in a dialog (not the browser’s default alert).
+  - **Import Excel** — pick a file; a progress state and **import summary** (rows read, imported, failures) are shown.
+  - **Export CSV** / **Export JSON** — downloads the **currently filtered** list (respects search and filters).
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+If your **role** is Viewer but you somehow opened Admin-only flows, the UI explains that you need **Admin** role in the sidebar.
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Roles: Admin vs Viewer
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+| Role | Sidebar tabs | Transactions |
+|------|----------------|--------------|
+| **Admin** | Dashboard, **Admin** | Full management: add, edit, delete, import Excel, export CSV/JSON |
+| **Viewer** | Dashboard, **Viewer** | Read-only table; exports still available where shown; no mutating actions |
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The **role** is stored in `localStorage` and restored on the next visit. Switching role while on a hidden tab (e.g. from Admin to Viewer while on Admin) moves you back to **Dashboard** so you never stay on an invalid section.
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Data: seed transactions & persistence
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Hard-coded (seed) transactions
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+On **first load in a browser profile** where no saved transactions exist, the app loads **four sample transactions** from `src/redux/reducer.js` (`DEFAULT_TRANSACTIONS`):
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+| Name | Date | Amount | Category | Type | Status |
+|------|------|--------|----------|------|--------|
+| Starbucks | 2026-03-20 | $10.45 | Food | expense | Completed |
+| Amazon | 2026-03-19 | $98.22 | Shopping | expense | Completed |
+| Rent | 2026-03-01 | $1,200.00 | Housing | expense | Completed |
+| Salary | 2026-02-28 | $5,000.00 | Income | income | Paid In |
 
-## Learn More
+These exist so the **dashboard and table are meaningful before any user input**. They are **not** fetched from a server.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### What gets saved in the browser
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+After the first save, Redux syncs to **`localStorage`** (see `src/redux/store.js`):
 
-### Code Splitting
+| Key | Content |
+|-----|---------|
+| `transactions` | Full array of transaction objects |
+| `theme` | `"light"` or `"dark"` |
+| `role` | `"viewer"` or `"admin"` |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- **Reload** — you see the same data you left (including deletions).
+- **New browser / incognito / cleared site data** — no `transactions` key → seed list appears again (fresh demo state).
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Excel import format
 
-### Making a Progressive Web App
+The importer reads the **first sheet** of the workbook. Rows should include columns the app can map (case-insensitive headers supported):
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+- **Name** / `name`
+- **Date** / `date`
+- **Amount** / `amount`
+- **Category** / `category`
+- **Type** / `type` (optional; defaults toward expense/income handling in code)
+- **Status** / `status` (optional; default e.g. Completed)
 
-### Advanced Configuration
+Invalid or empty rows are reported in the **import results** dialog with reasons; valid rows are appended via Redux.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+---
 
-### Deployment
+## Project structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```
+src/
+├── App.js                 # Redux Provider + DashboardPage
+├── DashboardPage.js       # Shell: sidebar, routing by nav + role, main views
+├── Dashboard.css          # Main layout and component styles
+├── components/
+│   ├── TransactionsTable.js   # Table, forms, import/export, modals, pagination
+│   ├── AdvancedFilters.js     # Filter modal
+│   ├── SummaryCards.js
+│   ├── BalanceTrend.js
+│   ├── SpendingBreakdown.js
+│   └── ThemeToggle.js
+├── redux/
+│   ├── store.js           # createStore, localStorage hydrate + subscribe
+│   ├── reducer.js         # DEFAULT_TRANSACTIONS + appReducer
+│   └── actions.js
+└── utils/
+    ├── dataUtils.js       # localStorage, mock API, CSV/JSON export
+    └── dateUtils.js       # Dates for filters and Excel normalization
+```
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## Testing & build
+
+```bash
+npm test
+```
+
+Runs Jest / React Testing Library in watch mode by default; use `CI=true npm test` for a single non-interactive run where appropriate.
+
+---
+
+## Limitations & notes
+
+- **No real backend** — no login, multi-user sync, or server validation.
+- **Mock delays** — some actions use `mockApiCall` with random rare “failure” to simulate latency/errors.
+- **Demo trend data** — part of the dashboard chart uses static `trendData` in `DashboardPage.js` for illustration alongside real aggregates from transactions.
+- **Single-user, one browser** — data is only as durable as that browser’s `localStorage`.
+
+---
+
+## Submission checklist (quick)
+
+- [ ] `npm install` then `npm start` — confirm UI loads.
+- [ ] Try **Dashboard**, then **Admin** / **Viewer** with role switching.
+- [ ] Confirm seed data appears on a clean profile; edit data and refresh to confirm persistence.
+- [ ] Optional: `npm run build` to verify production build succeeds.
+
+---
+
+*README generated to match the repository as of the Finance Panel coursework / submission. Update version numbers in [Tech stack](#tech-stack) if `package.json` changes.*

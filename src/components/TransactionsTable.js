@@ -13,7 +13,7 @@ import { exportToCSV, exportToJSON, mockApiCall } from '../utils/dataUtils';
 import * as XLSX from 'xlsx';
 import { dateToTimestampMs, formatDateForDisplay, normalizeExcelDate } from '../utils/dateUtils';
 import AdvancedFilters from './AdvancedFilters';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 
 const columnHelper = createColumnHelper();
 
@@ -37,6 +37,8 @@ export default function TransactionsTable({
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [importModal, setImportModal] = useState(null);
 
   const sorting = useMemo(
     () => (sortBy ? [{ id: sortBy, desc: sortDirection === 'desc' }] : []),
@@ -137,10 +139,8 @@ export default function TransactionsTable({
     return result;
   }, [searchQuery, transactions, filters]);
 
-  const handleDelete = useCallback(
+  const executeDelete = useCallback(
     async (id) => {
-      if (!window.confirm('Are you sure you want to delete this transaction?')) return;
-
       try {
         dispatch(setLoading(true));
         await mockApiCall('deleteTransaction', id);
@@ -149,10 +149,15 @@ export default function TransactionsTable({
         dispatch(setError(error.message));
       } finally {
         dispatch(setLoading(false));
+        setDeleteConfirm(null);
       }
     },
     [dispatch]
   );
+
+  const requestDelete = useCallback((tx) => {
+    setDeleteConfirm({ id: tx.id, name: tx.name || 'this transaction' });
+  }, []);
 
   const columns = useMemo(
     () => {
@@ -219,7 +224,7 @@ export default function TransactionsTable({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(row.original.id)}
+                  onClick={() => requestDelete(row.original)}
                   className="btn btn-danger table-action-btn"
                   aria-label="Delete transaction"
                 >
@@ -234,7 +239,7 @@ export default function TransactionsTable({
 
       return cols;
     },
-    [canMutate, startEdit, handleDelete]
+    [canMutate, startEdit, requestDelete]
   );
 
   const table = useReactTable({
@@ -285,15 +290,67 @@ export default function TransactionsTable({
     }
   };
 
+  const parseExcelRow = (row, index) => {
+    const rawDate = row.Date ?? row.date ?? '';
+    const normalizedDate = normalizeExcelDate(rawDate);
+    const name = String(row.Name || row.name || '').trim();
+    const amountRaw = row.Amount ?? row.amount;
+    const amount = amountRaw === '' || amountRaw === undefined ? NaN : Number(amountRaw);
+    const category = String(row.Category || row.category || '').trim();
+    const type = String(row.Type || row.type || 'expense').trim().toLowerCase();
+    const status = String(row.Status || row.status || 'Completed').trim();
+
+    const rowHasAnyValue = Object.values(row).some(
+      (v) => v !== '' && v !== undefined && v !== null
+    );
+    if (!rowHasAnyValue) {
+      return { ok: false, reason: 'Empty row' };
+    }
+
+    const missing = [];
+    if (!name) missing.push('name');
+    if (!normalizedDate) missing.push('date');
+    if (!Number.isFinite(amount)) missing.push('amount');
+    if (!category) missing.push('category');
+
+    if (missing.length > 0) {
+      return { ok: false, reason: `Missing or invalid: ${missing.join(', ')}` };
+    }
+
+    return {
+      ok: true,
+      transaction: {
+        id: Date.now() + index,
+        name,
+        date: normalizedDate,
+        amount,
+        category,
+        type: type === 'income' ? 'income' : 'expense',
+        status,
+      },
+    };
+  };
+
   const handleImportExcel = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    event.target.value = '';
     setIsImporting(true);
+    setImportModal({ phase: 'progress', percent: 0, message: 'Reading file…' });
+
+    const yieldToUi = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
     try {
       const data = await file.arrayBuffer();
+      setImportModal({ phase: 'progress', percent: 12, message: 'Parsing workbook…' });
+      await yieldToUi();
+
       const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
+      if (!sheetName) {
+        throw new Error('The workbook has no sheets');
+      }
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, {
         defval: '',
@@ -301,46 +358,81 @@ export default function TransactionsTable({
         cellDates: true,
       });
 
-      const validTransactions = jsonData
-        .map((row, index) => {
-          const rawDate = row.Date ?? row.date ?? '';
-          const normalizedDate = normalizeExcelDate(rawDate);
+      const totalRows = jsonData.length;
+      const failures = [];
+      const validTransactions = [];
 
-          const transaction = {
-            id: Date.now() + index,
-            name: String(row.Name || row.name || '').trim(),
-            date: normalizedDate,
-            amount: Number(row.Amount || row.amount || 0),
-            category: String(row.Category || row.category || '').trim(),
-            type: String(row.Type || row.type || 'expense').trim().toLowerCase(),
-            status: String(row.Status || row.status || 'Completed').trim(),
-          };
-
-          if (!transaction.name || !transaction.date || Number.isNaN(transaction.amount) || !transaction.category) {
-            console.warn(`Skipping invalid row ${index + 1}:`, row);
-            return null;
-          }
-
-          return transaction;
-        })
-        .filter(Boolean);
-
-      if (validTransactions.length === 0) {
-        throw new Error('No valid transactions found in the Excel file');
+      if (totalRows === 0) {
+        setIsImporting(false);
+        setImportModal({
+          phase: 'result',
+          totalRows: 0,
+          imported: 0,
+          failed: 0,
+          failures: [],
+          sheetName,
+        });
+        return;
       }
 
-      validTransactions.forEach((tx) => {
-        dispatch(addTransaction(tx));
-      });
+      for (let i = 0; i < jsonData.length; i++) {
+        const parsed = parseExcelRow(jsonData[i], i);
+        if (parsed.ok) {
+          validTransactions.push(parsed.transaction);
+        } else {
+          failures.push({ rowIndex: i + 1, reason: parsed.reason });
+        }
 
-      alert(`Successfully imported ${validTransactions.length} transactions`);
+        if (i % 8 === 0 || i === jsonData.length - 1) {
+          const pct = 12 + Math.round(((i + 1) / totalRows) * 58);
+          setImportModal({
+            phase: 'progress',
+            percent: pct,
+            message: `Parsing rows… ${i + 1} / ${totalRows}`,
+          });
+          await yieldToUi();
+        }
+      }
+
+      setImportModal({ phase: 'progress', percent: 72, message: 'Adding transactions to the table…' });
+      await yieldToUi();
+
+      for (let i = 0; i < validTransactions.length; i++) {
+        dispatch(addTransaction(validTransactions[i]));
+        if (i % 12 === 0 || i === validTransactions.length - 1) {
+          const pct = 72 + Math.round(((i + 1) / Math.max(validTransactions.length, 1)) * 25);
+          setImportModal({
+            phase: 'progress',
+            percent: Math.min(pct, 99),
+            message: `Saving… ${i + 1} / ${validTransactions.length}`,
+          });
+          await yieldToUi();
+        }
+      }
+
+      setImportModal({
+        phase: 'result',
+        totalRows,
+        imported: validTransactions.length,
+        failed: failures.length,
+        failures,
+        sheetName,
+      });
     } catch (error) {
-      dispatch(setError(`Failed to import Excel file: ${error.message}`));
+      setImportModal({
+        phase: 'result',
+        totalRows: 0,
+        imported: 0,
+        failed: 0,
+        failures: [],
+        error: error.message || 'Import failed',
+      });
     } finally {
       setIsImporting(false);
-      event.target.value = '';
     }
   };
+
+  const closeImportModal = () => setImportModal(null);
 
   const sectionTitle =
     viewMode === 'admin' ? 'Transaction management' : 'Transactions (read-only)';
@@ -365,33 +457,37 @@ export default function TransactionsTable({
           placeholder="Search by name/date/category/type/status"
           className="search-input"
         />
-        <span className="results-count">Matching: {totalFiltered}</span>
+       
 
         <div className="control-buttons">
-          <button type="button" onClick={() => setShowAdvancedFilters(true)} className="btn btn-secondary">
-            Filters
-          </button>
+          <div className="control-row control-row--filters">
+            <button type="button" onClick={() => setShowAdvancedFilters(true)} className="btn btn-secondary">
+              Filters
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            disabled={isExporting || filtered.length === 0}
-            className="btn btn-success"
-          >
-            {isExporting ? 'Exporting...' : 'Export CSV'}
-          </button>
+          <div className="control-row control-row--export">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={isExporting || filtered.length === 0}
+              className="btn btn-success"
+            >
+              {isExporting ? 'Exporting...' : 'Export CSV'}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleExportJSON}
-            disabled={isExporting || filtered.length === 0}
-            className="btn btn-success"
-          >
-            {isExporting ? 'Exporting...' : 'Export JSON'}
-          </button>
+            <button
+              type="button"
+              onClick={handleExportJSON}
+              disabled={isExporting || filtered.length === 0}
+              className="btn btn-success"
+            >
+              {isExporting ? 'Exporting...' : 'Export JSON'}
+            </button>
+          </div>
 
-          {canMutate && (
-            <>
+          {canMutate ? (
+            <div className="control-row control-row--mutate">
               <label htmlFor="excel-import" className="btn btn-import" style={{ cursor: 'pointer' }}>
                 {isImporting ? 'Importing...' : 'Import Excel'}
               </label>
@@ -403,21 +499,18 @@ export default function TransactionsTable({
                 disabled={isImporting}
                 style={{ display: 'none' }}
               />
-            </>
-          )}
-
-          {canMutate ? (
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddMode(true);
-                setEditTarget(null);
-                setForm({ name: '', date: '', amount: '', category: '', type: 'expense', status: '' });
-              }}
-              className="btn btn-primary"
-            >
-              + Add Transaction
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddMode(true);
+                  setEditTarget(null);
+                  setForm({ name: '', date: '', amount: '', category: '', type: 'expense', status: '' });
+                }}
+                className="btn btn-primary"
+              >
+                + Add Transaction
+              </button>
+            </div>
           ) : (
             <span className="viewer-mode-hint">Read-only: no edit actions</span>
           )}
@@ -539,68 +632,226 @@ export default function TransactionsTable({
           </div>
 
           <div className="table-pagination-bar">
-            <p className="pagination-entries" aria-live="polite">
-              Showing <strong>{from}</strong> to <strong>{to}</strong> of <strong>{totalFiltered}</strong> entries
-            </p>
-            <div className="pagination-meta">
-              <span className="pagination-total-records">Total records: {totalFiltered}</span>
-              <label className="page-size-label">
-                <span className="page-size-label-text">Rows per page</span>
-                <select
-                  className="page-size-select"
-                  value={pageSize}
-                  onChange={(e) => table.setPageSize(Number(e.target.value))}
-                  aria-label="Rows per page"
+            <div className="pagination-toolbar">
+              <div className="pagination-toolbar__summary">
+                <p className="pagination-entries" aria-live="polite">
+                  Showing <strong>{from}</strong> to <strong>{to}</strong> of <strong>{totalFiltered}</strong> entries
+                </p>
+                <div className="pagination-record-page" aria-label="Record summary">
+                  <span className="pagination-total-records">
+                    Total records: <strong>{totalFiltered}</strong>
+                  </span>
+                </div>
+              </div>
+              <div className="pagination-toolbar__actions">
+                <label className="page-size-label">
+                  <span className="page-size-label-text">Rows per page</span>
+                  <select
+                    className="page-size-select"
+                    value={pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    aria-label="Rows per page"
+                  >
+                    {[10, 25, 50, 100].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div
+                  className="pagination-nav pagination-nav--icons"
+                  role="navigation"
+                  aria-label="Table pages"
                 >
-                  {[10, 25, 50, 100].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="pagination-nav">
-              <button
-                type="button"
-                className="btn btn-secondary pagination-btn"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-              >
-                First
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary pagination-btn"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </button>
-              <span className="pagination-page-indicator">
-                Page {pageIndex + 1} of {Math.max(pageCount, 1)}
-              </span>
-              <button
-                type="button"
-                className="btn btn-secondary pagination-btn"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary pagination-btn"
-                onClick={() => table.setPageIndex(Math.max(pageCount - 1, 0))}
-                disabled={!table.getCanNextPage()}
-              >
-                Last
-              </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary pagination-btn pagination-btn--icon"
+                    onClick={() => table.setPageIndex(0)}
+                    disabled={!table.getCanPreviousPage()}
+                    aria-label="First page"
+                    title="First page"
+                  >
+                    <ChevronsLeft className="pagination-icon" size={18} strokeWidth={2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary pagination-btn pagination-btn--icon"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                    aria-label="Previous page"
+                    title="Previous page"
+                  >
+                    <ChevronLeft className="pagination-icon" size={18} strokeWidth={2} aria-hidden />
+                  </button>
+                  <span
+                    className="pagination-page-indicator"
+                    aria-current="page"
+                    aria-label={`Page ${pageIndex + 1} of ${Math.max(pageCount, 1)}`}
+                  >
+                    {pageIndex + 1} / {Math.max(pageCount, 1)}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary pagination-btn pagination-btn--icon"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                    aria-label="Next page"
+                    title="Next page"
+                  >
+                    <ChevronRight className="pagination-icon" size={18} strokeWidth={2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary pagination-btn pagination-btn--icon"
+                    onClick={() => table.setPageIndex(Math.max(pageCount - 1, 0))}
+                    disabled={!table.getCanNextPage()}
+                    aria-label="Last page"
+                    title="Last page"
+                  >
+                    <ChevronsRight className="pagination-icon" size={18} strokeWidth={2} aria-hidden />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </>
       )}
       <AdvancedFilters isOpen={showAdvancedFilters} onClose={() => setShowAdvancedFilters(false)} />
+
+      {deleteConfirm && (
+        <div
+          className="modal-overlay animate-fade-in"
+          role="presentation"
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <div
+            className="modal-content confirm-dialog animate-scale-in"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id="delete-confirm-title">Delete transaction?</h3>
+              <button
+                type="button"
+                className="close-btn"
+                aria-label="Close"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                This will remove <strong>{deleteConfirm.name}</strong> from your list. This cannot be undone from
+                here.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => executeDelete(deleteConfirm.id)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importModal?.phase === 'progress' && (
+        <div className="modal-overlay import-progress-overlay animate-fade-in" role="presentation">
+          <div
+            className="modal-content import-progress-dialog"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-body import-progress-body">
+              <p className="import-progress-title">Importing Excel…</p>
+              <p className="import-progress-message">{importModal.message}</p>
+              <div
+                className="progress-bar"
+                role="progressbar"
+                aria-valuenow={importModal.percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div className="progress-bar-fill" style={{ width: `${importModal.percent}%` }} />
+              </div>
+              <span className="progress-bar-percent">{importModal.percent}%</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importModal?.phase === 'result' && (
+        <div className="modal-overlay animate-fade-in" role="presentation" onClick={closeImportModal}>
+          <div
+            className="modal-content animate-scale-in"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-result-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id="import-result-title">Import results</h3>
+              <button type="button" className="close-btn" aria-label="Close" onClick={closeImportModal}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {importModal.error ? (
+                <p className="import-result-error" role="alert">
+                  {importModal.error}
+                </p>
+              ) : importModal.totalRows === 0 ? (
+                <p>No data rows were found in the first sheet of this workbook.</p>
+              ) : (
+                <>
+                  <ul className="import-result-summary">
+                    <li>
+                      Total rows read from sheet: <strong>{importModal.totalRows}</strong>
+                    </li>
+                    <li>
+                      Imported into the table: <strong>{importModal.imported}</strong>
+                    </li>
+                    <li>
+                      Failed or skipped: <strong>{importModal.failed}</strong>
+                    </li>
+                    {importModal.sheetName ? (
+                      <li>
+                        Sheet used: <strong>{importModal.sheetName}</strong>
+                      </li>
+                    ) : null}
+                  </ul>
+                  {importModal.failures.length > 0 ? (
+                    <div className="import-failures">
+                      <h4 className="import-failures-heading">Rows that could not be imported</h4>
+                      <ul className="import-failures-list">
+                        {importModal.failures.map((f) => (
+                          <li key={`fail-${f.rowIndex}`}>
+                            <span className="import-failures-row">Row {f.rowIndex}</span>
+                            <span className="import-failures-reason">{f.reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-primary" onClick={closeImportModal}>
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
