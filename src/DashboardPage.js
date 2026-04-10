@@ -262,7 +262,7 @@ export default function DashboardPage() {
           <div className="dashboard-main-body animate-fade-in">
             <SummaryCards cards={insights.summaryCards} />
             <section className="chart-grid">
-              <BalanceTrend trend={trendData} />
+              {/* <BalanceTrend trend={trendData} /> */}
               <SpendingBreakdown categories={insights.spendingCategories} />
             </section>
 
