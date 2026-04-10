@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import './Dashboard.css';
 import SummaryCards from './components/SummaryCards';
-import BalanceTrend from './components/BalanceTrend';
+// import BalanceTrend from './components/BalanceTrend';
 import SpendingBreakdown from './components/SpendingBreakdown';
 import TransactionsTable from './components/TransactionsTable';
 import ThemeToggle from './components/ThemeToggle';
@@ -10,16 +10,16 @@ import { setRole, addTransaction, updateTransaction } from './redux/actions';
 import { loadThemePreference } from './utils/dataUtils';
 import { dateToTimestampMs, normalizeExcelDate } from './utils/dateUtils';
 
-const trendData = [
-  { month: 'Jan', value: 320 },
-  { month: 'Feb', value: 360 },
-  { month: 'Mar', value: 310 },
-  { month: 'Apr', value: 385 },
-  { month: 'May', value: 430 },
-  { month: 'Jun', value: 395 },
-  { month: 'Jul', value: 470 },
-  { month: 'Aug', value: 450 },
-];
+// const trendData = [
+//   { month: 'Jan', value: 320 },
+//   { month: 'Feb', value: 360 },
+//   { month: 'Mar', value: 310 },
+//   { month: 'Apr', value: 385 },
+//   { month: 'May', value: 430 },
+//   { month: 'Jun', value: 395 },
+//   { month: 'Jul', value: 470 },
+//   { month: 'Aug', value: 450 },
+// ];
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard' },
