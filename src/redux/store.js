@@ -11,7 +11,7 @@ const STORAGE_KEY_TRANSACTIONS = 'transactions';
  */
 const loadPersistedTransactions = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
+    const raw = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);   // like when backend is integrated, this is the source of truth for transactions data; if missing, use defaults
     if (raw === null) {
       return DEFAULT_TRANSACTIONS;
     }
